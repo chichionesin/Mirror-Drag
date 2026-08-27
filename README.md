@@ -16,9 +16,18 @@ just a tray icon, no installer, no runtime dependencies.
 
 Both keys are configurable (see below).
 
+## Download
+
+Grab `mirror-drag.exe` from the
+[latest release](https://github.com/chichionesin/Mirror-Drag/releases/latest) (Windows 10/11,
+x64). Each release ships a `.sha256` file with the checksum. The binary is unsigned, so
+SmartScreen may show a warning on first run — it is built by the
+[release workflow](.github/workflows/release.yml) on GitHub's own runners straight from the
+tagged source, or you can [build it yourself](#building).
+
 ## Usage
 
-Download or build `mirror-drag.exe` and double-click it. It keeps running in the
+Double-click `mirror-drag.exe`. It keeps running in the
 background and shows a small blue icon in the notification area (tray); hover it to see
 the configured keys.
 

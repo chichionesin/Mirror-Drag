@@ -1,0 +1,43 @@
+# Publishes a GitHub Release with mirror-drag.exe whenever a version tag (v1.2.3) is pushed.
+# The binary is built on GitHub's Windows runner straight from the tagged source.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish mirror-drag.exe
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Check that the tag matches Cargo.toml
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          grep -q "^version = \"$version\"$" Cargo.toml \
+            || { echo "::error::Cargo.toml version does not match tag $GITHUB_REF_NAME"; exit 1; }
+
+      - run: cargo test --release --locked
+      - run: cargo build --release --locked
+
+      - name: Package
+        run: |
+          mkdir dist
+          cp target/release/mirror-drag.exe dist/
+          cd dist && sha256sum mirror-drag.exe > mirror-drag.exe.sha256 && cat mirror-drag.exe.sha256
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/mirror-drag.exe dist/mirror-drag.exe.sha256 \
+            --title "Mirror-Drag ${GITHUB_REF_NAME#v}" --generate-notes
