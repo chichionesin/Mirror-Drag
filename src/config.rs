@@ -25,8 +25,9 @@ pub const HELP: &str = concat!(
     "  -h, --help                  Show this help\n",
     "  -V, --version               Show the version\n",
     "\n",
-    "The tool runs in the background without any window. Launching it a second time asks\n",
-    "whether to stop the running instance; --quit stops it without asking.\n",
+    "The tool runs in the background with a tray icon: right-click it and choose Exit to\n",
+    "stop. Launching it a second time asks whether to stop the running instance; --quit\n",
+    "stops it without asking.\n",
 );
 
 #[derive(Clone, Debug, PartialEq, Eq)]

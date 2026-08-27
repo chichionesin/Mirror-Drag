@@ -1,15 +1,17 @@
 //! windows-resizer — macOS-style symmetric window resizing and a center-window hotkey
-//! for Windows. Runs as a tiny background process with no window of its own.
+//! for Windows. Runs as a tiny background process whose only UI is a tray icon.
 //!
 //! Module layout:
 //! * `geometry`, `keys`, `config` — platform-independent logic with unit tests.
-//! * `ui`, `instance`, `window`, `hooks`, `app` — the Win32 side (compiled on Windows only).
+//! * `icon` — the tray icon, rendered procedurally (also tested on any host).
+//! * `ui`, `instance`, `window`, `hooks`, `tray`, `app` — the Win32 side (compiled on Windows only).
 
 #![cfg_attr(windows, windows_subsystem = "windows")]
 #![cfg_attr(not(windows), allow(dead_code))]
 
 mod config;
 mod geometry;
+mod icon;
 mod keys;
 
 #[cfg(windows)]
@@ -21,6 +23,8 @@ mod app;
 mod hooks;
 #[cfg(windows)]
 mod instance;
+#[cfg(windows)]
+mod tray;
 #[cfg(windows)]
 mod window;
 

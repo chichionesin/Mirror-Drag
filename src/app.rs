@@ -21,7 +21,7 @@ use crate::config::{self, Command, Config};
 use crate::geometry::center_in;
 use crate::instance::{self, Acquire};
 use crate::keys::Hotkey;
-use crate::{hooks, ui, window};
+use crate::{hooks, tray, ui, window};
 
 const CENTER_HOTKEY_ID: i32 = 1;
 
@@ -93,6 +93,10 @@ fn run(config: &Config) -> i32 {
         }
     };
     let _hotkey = config.center_hotkey.and_then(register_center_hotkey);
+    // Not fatal: without the icon the tool still works and --quit still stops it.
+    let _tray = tray::install(config)
+        .map_err(|error| ui::report(&format!("Tray icon unavailable: {error}"), true))
+        .ok();
     log!(
         "running: modifier={} center-hotkey={}",
         config.modifier.name(),

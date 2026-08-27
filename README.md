@@ -6,8 +6,8 @@ macOS has two small window tricks that Windows lacks:
   moves by the same amount and the window stays centered on the same point.
 * **Window → Move & Resize → Center** puts the window exactly in the middle of the screen.
 
-`windows-resizer` brings both to Windows as a single ~300 KB background executable with
-no window, no tray icon, no installer and no runtime dependencies.
+`windows-resizer` brings both to Windows as a single ~300 KB background executable —
+just a tray icon, no installer, no runtime dependencies.
 
 | Gesture                              | Effect                                                    |
 |--------------------------------------|-----------------------------------------------------------|
@@ -19,9 +19,11 @@ Both keys are configurable (see below).
 ## Usage
 
 Download or build `windows-resizer.exe` and double-click it. It keeps running in the
-background (check Task Manager → *Details* if in doubt).
+background and shows a small blue icon in the notification area (tray); hover it to see
+the configured keys.
 
-To stop it, run it again — it asks whether to stop the running instance — or run
+To stop it, right-click the tray icon and choose **Exit**. Alternatively run the exe
+again — it asks whether to stop the running instance — or run
 `windows-resizer.exe --quit` from a terminal.
 
 ```
@@ -110,6 +112,9 @@ cargo clippy --target x86_64-pc-windows-gnu --all-targets -- -D warnings
   the result looks centered rather than being centered on paper.
 * The process is per-monitor DPI aware (v2), so all coordinates are physical pixels and
   mixed-DPI setups work.
+* The tray icon is a `Shell_NotifyIcon` owned by a hidden window; its context menu's *Exit*
+  posts `WM_QUIT`. The icon itself is rendered at startup from a few rectangles (no image
+  resources), and is re-added automatically when Explorer restarts (`TaskbarCreated`).
 * A named mutex enforces a single instance; a named event lets `--quit` (or a second launch)
   stop it cleanly, unhooking everything on the way out.
 
