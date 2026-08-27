@@ -1,4 +1,4 @@
-# windows-resizer
+# Mirror-Drag
 
 macOS has two small window tricks that Windows lacks:
 
@@ -6,7 +6,7 @@ macOS has two small window tricks that Windows lacks:
   moves by the same amount and the window stays centered on the same point.
 * **Window → Move & Resize → Center** puts the window exactly in the middle of the screen.
 
-`windows-resizer` brings both to Windows as a single ~300 KB background executable —
+Mirror-Drag brings both to Windows as a single ~300 KB background executable —
 just a tray icon, no installer, no runtime dependencies.
 
 | Gesture                              | Effect                                                    |
@@ -18,16 +18,16 @@ Both keys are configurable (see below).
 
 ## Usage
 
-Download or build `windows-resizer.exe` and double-click it. It keeps running in the
+Download or build `mirror-drag.exe` and double-click it. It keeps running in the
 background and shows a small blue icon in the notification area (tray); hover it to see
 the configured keys.
 
 To stop it, right-click the tray icon and choose **Exit**. Alternatively run the exe
 again — it asks whether to stop the running instance — or run
-`windows-resizer.exe --quit` from a terminal.
+`mirror-drag.exe --quit` from a terminal.
 
 ```
-windows-resizer.exe [OPTIONS]
+mirror-drag.exe [OPTIONS]
 
   -m, --modifier <KEY>        Key to hold while dragging an edge: alt, ctrl, shift, win
                               [default: alt]
@@ -42,20 +42,20 @@ windows-resizer.exe [OPTIONS]
 Examples:
 
 ```
-windows-resizer.exe                                  # Alt+drag, Win+Alt+C
-windows-resizer.exe --modifier win --center-hotkey ctrl+alt+space
-windows-resizer.exe --center-hotkey none             # symmetric resize only
-windows-resizer.exe --console                        # watch what it does
+mirror-drag.exe                                  # Alt+drag, Win+Alt+C
+mirror-drag.exe --modifier win --center-hotkey ctrl+alt+space
+mirror-drag.exe --center-hotkey none             # symmetric resize only
+mirror-drag.exe --console                        # watch what it does
 ```
 
 **Autostart:** press `Win+R`, run `shell:startup`, and put a shortcut to
-`windows-resizer.exe` (with any options you like) into the folder that opens.
+`mirror-drag.exe` (with any options you like) into the folder that opens.
 
 ## Notes and limitations
 
 * **Elevated windows.** Windows does not let a normal process touch windows of programs
   running as administrator (UIPI). Alt+drag on such a window falls back to the normal
-  resize. Run `windows-resizer.exe` as administrator if you need it there too.
+  resize. Run `mirror-drag.exe` as administrator if you need it there too.
 * **Alt and menus.** Releasing Alt on its own focuses an application's menu bar. After a
   drag the tool taps Ctrl before the Alt release reaches the app (the same trick AltDrag /
   AltSnap use), so menus stay closed. The same applies to the Win key and the Start menu.
@@ -83,7 +83,7 @@ Cross-compiling from macOS (or Linux) needs the MinGW-w64 linker:
 brew install mingw-w64                      # Debian/Ubuntu: apt install gcc-mingw-w64-x86-64
 rustup target add x86_64-pc-windows-gnu
 cargo build --release --target x86_64-pc-windows-gnu
-# -> target/x86_64-pc-windows-gnu/release/windows-resizer.exe
+# -> target/x86_64-pc-windows-gnu/release/mirror-drag.exe
 ```
 
 `.cargo/config.toml` already points the GNU target at `x86_64-w64-mingw32-gcc`.

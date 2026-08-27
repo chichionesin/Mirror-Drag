@@ -1,4 +1,4 @@
-//! windows-resizer — macOS-style symmetric window resizing and a center-window hotkey
+//! mirror-drag — macOS-style symmetric window resizing and a center-window hotkey
 //! for Windows. Runs as a tiny background process whose only UI is a tray icon.
 //!
 //! Module layout:
@@ -38,9 +38,11 @@ fn main() {
     // The binary itself is Windows-only; the pure modules still build (and are tested) here.
     match config::parse_args(std::env::args().skip(1)) {
         Ok(config::Command::Help) => print!("{}", config::HELP),
-        Ok(config::Command::Version) => println!("windows-resizer {}", env!("CARGO_PKG_VERSION")),
+        Ok(config::Command::Version) => println!("mirror-drag {}", env!("CARGO_PKG_VERSION")),
         _ => {
-            eprintln!("windows-resizer only runs on Windows; build it with --target x86_64-pc-windows-gnu.");
+            eprintln!(
+                "mirror-drag only runs on Windows; build it with --target x86_64-pc-windows-gnu."
+            );
             std::process::exit(1);
         }
     }

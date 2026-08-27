@@ -1,9 +1,9 @@
 [package]
-name = "windows-resizer"
+name = "mirror-drag"
 version = "0.2.0"
 edition = "2021"
 rust-version = "1.85"
-description = "macOS-style symmetric window resizing (Alt+drag) and center-window hotkey for Windows"
+description = "Alt+drag resizes windows symmetrically around their center — like Option+drag on macOS — plus a hotkey to center the active window. Tiny dependency-free Rust tray app for Windows."
 license = "MIT"
 repository = "https://github.com/chichionesin/Mirror-Drag"
 keywords = ["windows", "window-management", "resize", "hotkey"]
@@ -11,7 +11,7 @@ categories = ["os::windows-apis", "command-line-utilities"]
 publish = false
 
 [[bin]]
-name = "windows-resizer"
+name = "mirror-drag"
 path = "src/main.rs"
 
 [target.'cfg(windows)'.dependencies.windows-sys]

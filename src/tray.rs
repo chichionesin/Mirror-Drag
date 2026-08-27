@@ -22,7 +22,7 @@ use crate::config::Config;
 use crate::icon;
 use crate::ui::{last_error, wide, APP_NAME};
 
-const CLASS_NAME: &str = "WindowsResizerTray";
+const CLASS_NAME: &str = "MirrorDragTray";
 const ICON_ID: u32 = 1;
 /// Callback message the shell sends for icon events.
 const WM_TRAY: u32 = WM_APP + 1;
@@ -228,7 +228,7 @@ fn center_hint(config: &Config) -> String {
 
 fn info_lines(config: &Config) -> Vec<String> {
     vec![
-        concat!("Windows Resizer ", env!("CARGO_PKG_VERSION")).to_string(),
+        concat!("Mirror-Drag ", env!("CARGO_PKG_VERSION")).to_string(),
         resize_hint(config),
         center_hint(config),
     ]

@@ -6,14 +6,14 @@ pub const DEFAULT_MODIFIER: &str = "alt";
 pub const DEFAULT_CENTER_HOTKEY: &str = "win+alt+c";
 
 pub const HELP: &str = concat!(
-    "windows-resizer ",
+    "mirror-drag ",
     env!("CARGO_PKG_VERSION"),
     "\n",
     "macOS-style window tricks for Windows: hold a modifier while dragging a window edge\n",
     "to resize it symmetrically around its center, plus a hotkey that centers the active window.\n",
     "\n",
     "USAGE:\n",
-    "  windows-resizer.exe [OPTIONS]\n",
+    "  mirror-drag.exe [OPTIONS]\n",
     "\n",
     "OPTIONS:\n",
     "  -m, --modifier <KEY>        Key to hold while dragging an edge: alt, ctrl, shift, win\n",

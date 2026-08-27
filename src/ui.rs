@@ -10,7 +10,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     MB_YESNO, MESSAGEBOX_STYLE,
 };
 
-pub const APP_NAME: &str = "Windows Resizer";
+pub const APP_NAME: &str = "Mirror-Drag";
 
 static HAS_CONSOLE: AtomicBool = AtomicBool::new(false);
 static VERBOSE: AtomicBool = AtomicBool::new(false);

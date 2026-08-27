@@ -10,8 +10,8 @@ use windows_sys::Win32::System::Threading::{
 use crate::ui::{last_error, wide};
 
 // `Local\` scopes the objects to the current logon session.
-const MUTEX_NAME: &str = "Local\\WindowsResizer.Instance";
-const QUIT_EVENT_NAME: &str = "Local\\WindowsResizer.Quit";
+const MUTEX_NAME: &str = "Local\\MirrorDrag.Instance";
+const QUIT_EVENT_NAME: &str = "Local\\MirrorDrag.Quit";
 
 /// Held by the primary instance for its whole lifetime.
 pub struct Instance {

@@ -24,7 +24,7 @@ jobs:
       - run: cargo test
 
   build-windows:
-    name: Build windows-resizer.exe
+    name: Build mirror-drag.exe
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,5 +33,5 @@ jobs:
       - run: cargo test --release --locked
       - uses: actions/upload-artifact@v4
         with:
-          name: windows-resizer
-          path: target/release/windows-resizer.exe
+          name: mirror-drag
+          path: target/release/mirror-drag.exe

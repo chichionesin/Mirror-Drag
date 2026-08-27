@@ -47,10 +47,7 @@ pub fn main() -> i32 {
         }
         Command::Version => {
             ui::attach_parent_console();
-            ui::report(
-                concat!("windows-resizer ", env!("CARGO_PKG_VERSION")),
-                false,
-            );
+            ui::report(concat!("mirror-drag ", env!("CARGO_PKG_VERSION")), false);
             0
         }
         Command::Quit => {
@@ -58,7 +55,7 @@ pub fn main() -> i32 {
             if instance::signal_quit() {
                 0
             } else {
-                ui::report("windows-resizer is not running.", true);
+                ui::report("Mirror-Drag is not running.", true);
                 1
             }
         }
