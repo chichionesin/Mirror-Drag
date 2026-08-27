@@ -2,9 +2,10 @@
 //! for Windows. Runs as a tiny background process whose only UI is a tray icon.
 //!
 //! Module layout:
-//! * `geometry`, `keys`, `config` — platform-independent logic with unit tests.
+//! * `geometry`, `keys`, `config`, `shake` — platform-independent logic with unit tests.
 //! * `icon` — the tray icon, rendered procedurally (also tested on any host).
-//! * `ui`, `instance`, `window`, `hooks`, `tray`, `app` — the Win32 side (compiled on Windows only).
+//! * `ui`, `instance`, `window`, `hooks`, `tray`, `hotkey`, `cursor`, `settings`, `registry`, `app` —
+//!   the Win32 side (compiled on Windows only).
 
 #![cfg_attr(windows, windows_subsystem = "windows")]
 #![cfg_attr(not(windows), allow(dead_code))]
@@ -13,6 +14,7 @@ mod config;
 mod geometry;
 mod icon;
 mod keys;
+mod shake;
 
 #[cfg(windows)]
 #[macro_use]
@@ -20,9 +22,17 @@ mod ui;
 #[cfg(windows)]
 mod app;
 #[cfg(windows)]
+mod cursor;
+#[cfg(windows)]
 mod hooks;
 #[cfg(windows)]
+mod hotkey;
+#[cfg(windows)]
 mod instance;
+#[cfg(windows)]
+mod registry;
+#[cfg(windows)]
+mod settings;
 #[cfg(windows)]
 mod tray;
 #[cfg(windows)]

@@ -8,22 +8,17 @@ use windows_sys::Win32::System::Threading::INFINITE;
 use windows_sys::Win32::UI::HiDpi::{
     SetProcessDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2,
 };
-use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
-    RegisterHotKey, UnregisterHotKey, MOD_NOREPEAT,
-};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     DispatchMessageW, MsgWaitForMultipleObjects, PeekMessageW, SetProcessDPIAware,
     TranslateMessage, MB_ICONERROR, MSG, PM_REMOVE, QS_ALLINPUT, SWP_NOACTIVATE, SWP_NOSIZE,
-    SWP_NOZORDER, WM_HOTKEY, WM_QUIT,
+    SWP_NOZORDER, WM_QUIT, WM_TIMER,
 };
 
 use crate::config::{self, Command, Config};
 use crate::geometry::center_in;
 use crate::instance::{self, Acquire};
-use crate::keys::Hotkey;
-use crate::{hooks, tray, ui, window};
-
-const CENTER_HOTKEY_ID: i32 = 1;
+use crate::settings::{self, Feature};
+use crate::{cursor, hooks, hotkey, tray, ui, window};
 
 pub fn main() -> i32 {
     // With the "windows" subsystem a panic would otherwise vanish silently.
@@ -82,6 +77,8 @@ fn run(config: &Config) -> i32 {
     };
 
     enable_dpi_awareness();
+    settings::load();
+    cursor::restore_after_crash();
     let _hooks = match hooks::install(config.modifier) {
         Ok(hooks) => hooks,
         Err(error) => {
@@ -89,20 +86,26 @@ fn run(config: &Config) -> i32 {
             return 1;
         }
     };
-    let _hotkey = config.center_hotkey.and_then(register_center_hotkey);
-    // Not fatal: without the icon the tool still works and --quit still stops it.
+    hotkey::configure(config.center_hotkey);
+    if settings::is_enabled(Feature::CenterHotkey) {
+        if let Err(error) = hotkey::set_enabled(true) {
+            // Not fatal: everything else keeps working.
+            ui::report(&error, true);
+        }
+    }
+    // Not fatal either: without the icon the tool still works and --quit still stops it.
     let _tray = tray::install(config)
         .map_err(|error| ui::report(&format!("Tray icon unavailable: {error}"), true))
         .ok();
     log!(
         "running: modifier={} center-hotkey={}",
         config.modifier.name(),
-        config
-            .center_hotkey
-            .map_or_else(|| "none".to_string(), |hotkey| hotkey.describe())
+        hotkey::describe()
     );
 
     message_loop(instance.quit_event());
+    hotkey::shutdown();
+    cursor::shutdown();
     log!("exiting");
     0
 }
@@ -115,40 +118,8 @@ fn enable_dpi_awareness() {
     }
 }
 
-struct HotkeyGuard(i32);
-
-impl Drop for HotkeyGuard {
-    fn drop(&mut self) {
-        unsafe { UnregisterHotKey(null_mut(), self.0) };
-    }
-}
-
-/// A failure here is not fatal: the resize gesture still works, so just tell the user.
-fn register_center_hotkey(hotkey: Hotkey) -> Option<HotkeyGuard> {
-    let ok = unsafe {
-        RegisterHotKey(
-            null_mut(),
-            CENTER_HOTKEY_ID,
-            hotkey.modifiers | MOD_NOREPEAT,
-            hotkey.vk,
-        )
-    } != 0;
-    if ok {
-        return Some(HotkeyGuard(CENTER_HOTKEY_ID));
-    }
-    ui::report(
-        &format!(
-            "Could not register the center-window hotkey {} (error {}); another program probably \
-             uses it.\n\nSymmetric resizing still works. Choose another key with --center-hotkey.",
-            hotkey.describe(),
-            ui::last_error()
-        ),
-        true,
-    );
-    None
-}
-
-/// Pumps messages (required for the hooks and WM_HOTKEY) until the quit event is signaled.
+/// Pumps messages (required for the hooks, the hotkey and thread timers) until the quit event
+/// is signaled or the tray menu posts WM_QUIT.
 fn message_loop(quit_event: HANDLE) {
     let mut msg: MSG = unsafe { zeroed() };
     loop {
@@ -167,7 +138,11 @@ fn message_loop(quit_event: HANDLE) {
         while unsafe { PeekMessageW(&mut msg, null_mut(), 0, 0, PM_REMOVE) } != 0 {
             match msg.message {
                 WM_QUIT => return,
-                WM_HOTKEY if msg.wParam == CENTER_HOTKEY_ID as usize => center_active_window(),
+                _ if hotkey::matches(&msg) => center_active_window(),
+                cursor::WM_SHAKE if msg.hwnd.is_null() => cursor::on_shake(),
+                WM_TIMER if msg.hwnd.is_null() => {
+                    cursor::on_timer(msg.wParam);
+                }
                 _ => unsafe {
                     TranslateMessage(&msg);
                     DispatchMessageW(&msg);

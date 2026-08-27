@@ -13,14 +13,15 @@ use windows_sys::Win32::UI::Shell::{
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     AppendMenuW, CreatePopupMenu, CreateWindowExW, DefWindowProcW, DestroyIcon, DestroyMenu,
     DestroyWindow, PostMessageW, PostQuitMessage, RegisterClassW, RegisterWindowMessageW,
-    SetForegroundWindow, TrackPopupMenu, UnregisterClassW, HICON, MF_GRAYED, MF_SEPARATOR,
-    MF_STRING, TPM_BOTTOMALIGN, TPM_LEFTALIGN, TPM_RETURNCMD, TPM_RIGHTBUTTON, WM_APP,
-    WM_CONTEXTMENU, WM_NULL, WNDCLASSW, WS_OVERLAPPED,
+    SetForegroundWindow, TrackPopupMenu, UnregisterClassW, HICON, HMENU, MF_CHECKED, MF_GRAYED,
+    MF_SEPARATOR, MF_STRING, MF_UNCHECKED, TPM_BOTTOMALIGN, TPM_LEFTALIGN, TPM_RETURNCMD,
+    TPM_RIGHTBUTTON, WM_APP, WM_CONTEXTMENU, WM_NULL, WNDCLASSW, WS_OVERLAPPED,
 };
 
 use crate::config::Config;
-use crate::icon;
+use crate::settings::{self, Feature};
 use crate::ui::{last_error, wide, APP_NAME};
+use crate::{hotkey, icon, ui};
 
 const CLASS_NAME: &str = "MirrorDragTray";
 const ICON_ID: u32 = 1;
@@ -28,12 +29,17 @@ const ICON_ID: u32 = 1;
 const WM_TRAY: u32 = WM_APP + 1;
 /// `NIN_SELECT | NINF_KEY`: the icon was selected with the keyboard.
 const NIN_KEYSELECT: u32 = NIN_SELECT | 1;
+
 const MENU_EXIT: usize = 1;
+const MENU_RESIZE: usize = 2;
+const MENU_CENTER: usize = 3;
+const MENU_SHAKE: usize = 4;
+const MENU_AUTOSTART: usize = 5;
 
 struct State {
     data: NOTIFYICONDATAW,
-    /// Informational (disabled) lines shown at the top of the menu.
-    info_lines: Vec<String>,
+    resize_label: String,
+    center_label: String,
     /// Broadcast by Explorer when it (re)starts; the icon must then be added again.
     taskbar_created: u32,
 }
@@ -87,6 +93,8 @@ pub fn install(config: &Config) -> Result<Tray, String> {
         icon: icon::create_icon(),
     };
 
+    let resize_label = format!("Symmetric resize ({} + drag edge)", config.modifier.name());
+    let center_label = format!("Center window ({})", hotkey::describe());
     let mut data: NOTIFYICONDATAW = unsafe { zeroed() };
     data.cbSize = size_of::<NOTIFYICONDATAW>() as u32;
     data.hWnd = hwnd;
@@ -95,12 +103,16 @@ pub fn install(config: &Config) -> Result<Tray, String> {
     data.uCallbackMessage = WM_TRAY;
     data.hIcon = tray.icon;
     data.Anonymous.uVersion = NOTIFYICON_VERSION_4;
-    copy_tip(&mut data.szTip, &tooltip(config));
+    copy_tip(
+        &mut data.szTip,
+        &format!("{APP_NAME}\n{resize_label}\n{center_label}"),
+    );
     let taskbar_created = unsafe { RegisterWindowMessageW(wide("TaskbarCreated").as_ptr()) };
     STATE.with(|state| {
         *state.borrow_mut() = Some(State {
             data,
-            info_lines: info_lines(config),
+            resize_label,
+            center_label,
             taskbar_created,
         });
     });
@@ -178,22 +190,53 @@ unsafe extern "system" fn wnd_proc(
 }
 
 fn show_menu(hwnd: HWND, x: i32, y: i32) {
-    let lines = STATE.with(|state| {
+    let labels = STATE.with(|state| {
         state
             .borrow()
             .as_ref()
-            .map(|state| state.info_lines.clone())
-            .unwrap_or_default()
+            .map(|state| (state.resize_label.clone(), state.center_label.clone()))
     });
+    let Some((resize_label, center_label)) = labels else {
+        return;
+    };
     unsafe {
         let menu = CreatePopupMenu();
         if menu.is_null() {
             return;
         }
-        for line in &lines {
-            let text = wide(line);
-            AppendMenuW(menu, MF_STRING | MF_GRAYED, 0, text.as_ptr());
-        }
+        let header = wide(concat!("Mirror-Drag ", env!("CARGO_PKG_VERSION")));
+        AppendMenuW(menu, MF_STRING | MF_GRAYED, 0, header.as_ptr());
+        AppendMenuW(menu, MF_SEPARATOR, 0, null());
+        append_toggle(
+            menu,
+            MENU_RESIZE,
+            &resize_label,
+            settings::is_enabled(Feature::SymmetricResize),
+            true,
+        );
+        let center_on = settings::is_enabled(Feature::CenterHotkey) && hotkey::available();
+        append_toggle(
+            menu,
+            MENU_CENTER,
+            &center_label,
+            center_on,
+            hotkey::available(),
+        );
+        append_toggle(
+            menu,
+            MENU_SHAKE,
+            "Shake to find cursor",
+            settings::is_enabled(Feature::ShakeToFind),
+            true,
+        );
+        AppendMenuW(menu, MF_SEPARATOR, 0, null());
+        append_toggle(
+            menu,
+            MENU_AUTOSTART,
+            "Start with Windows",
+            settings::autostart_enabled(),
+            true,
+        );
         AppendMenuW(menu, MF_SEPARATOR, 0, null());
         let exit = wide("Exit");
         AppendMenuW(menu, MF_STRING, MENU_EXIT, exit.as_ptr());
@@ -204,42 +247,53 @@ fn show_menu(hwnd: HWND, x: i32, y: i32) {
         let choice = TrackPopupMenu(menu, flags, x, y, 0, hwnd, null());
         PostMessageW(hwnd, WM_NULL, 0, 0);
         DestroyMenu(menu);
+        on_menu_choice(choice as usize);
+    }
+}
 
-        if choice as usize == MENU_EXIT {
+unsafe fn append_toggle(menu: HMENU, id: usize, label: &str, checked: bool, enabled: bool) {
+    let check = if checked { MF_CHECKED } else { MF_UNCHECKED };
+    let gray = if enabled { 0 } else { MF_GRAYED };
+    let text = wide(label);
+    unsafe { AppendMenuW(menu, MF_STRING | check | gray, id, text.as_ptr()) };
+}
+
+fn on_menu_choice(choice: usize) {
+    match choice {
+        MENU_EXIT => {
             log!("exit chosen from the tray menu");
-            PostQuitMessage(0);
+            unsafe { PostQuitMessage(0) };
         }
+        MENU_RESIZE => toggle(Feature::SymmetricResize),
+        MENU_SHAKE => toggle(Feature::ShakeToFind),
+        MENU_CENTER => {
+            let on = !settings::is_enabled(Feature::CenterHotkey);
+            settings::set_enabled(Feature::CenterHotkey, on);
+            if let Err(error) = hotkey::set_enabled(on) {
+                settings::set_enabled(Feature::CenterHotkey, false);
+                ui::report(&error, true);
+            }
+            log!("center hotkey -> {on}");
+        }
+        MENU_AUTOSTART => {
+            let on = !settings::autostart_enabled();
+            if settings::set_autostart(on) {
+                log!("start with Windows -> {on}");
+            } else {
+                ui::report(
+                    "Could not update the Start-with-Windows entry in the registry.",
+                    true,
+                );
+            }
+        }
+        _ => {}
     }
 }
 
-fn resize_hint(config: &Config) -> String {
-    format!(
-        "{} + drag a window edge: symmetric resize",
-        config.modifier.name()
-    )
-}
-
-fn center_hint(config: &Config) -> String {
-    match config.center_hotkey {
-        Some(hotkey) => format!("{}: center the active window", hotkey.describe()),
-        None => "Center hotkey: disabled".to_string(),
-    }
-}
-
-fn info_lines(config: &Config) -> Vec<String> {
-    vec![
-        concat!("Mirror-Drag ", env!("CARGO_PKG_VERSION")).to_string(),
-        resize_hint(config),
-        center_hint(config),
-    ]
-}
-
-fn tooltip(config: &Config) -> String {
-    format!(
-        "{APP_NAME}\n{}\n{}",
-        resize_hint(config),
-        center_hint(config)
-    )
+fn toggle(feature: Feature) {
+    let on = !settings::is_enabled(feature);
+    settings::set_enabled(feature, on);
+    log!("{feature:?} -> {on}");
 }
 
 /// Copies `text` into a fixed NUL-terminated UTF-16 buffer, truncating if needed.

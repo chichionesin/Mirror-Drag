@@ -1,6 +1,6 @@
 [package]
 name = "mirror-drag"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 rust-version = "1.85"
 description = "Alt+drag resizes windows symmetrically around their center — like Option+drag on macOS — plus a hotkey to center the active window. Tiny dependency-free Rust tray app for Windows."
@@ -23,6 +23,7 @@ features = [
     "Win32_Security",
     "Win32_System_Console",
     "Win32_System_LibraryLoader",
+    "Win32_System_Registry",
     "Win32_System_Threading",
     "Win32_UI_HiDpi",
     "Win32_UI_Input_KeyboardAndMouse",

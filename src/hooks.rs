@@ -24,8 +24,10 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
 
 use crate::geometry::{symmetric_resize, Edges, Limits, Rect};
 use crate::keys::Modifier;
+use crate::settings::{self, Feature};
+use crate::shake::ShakeDetector;
 use crate::ui::last_error;
-use crate::window;
+use crate::{cursor, window};
 
 /// An in-progress symmetric resize.
 struct Drag {
@@ -42,11 +44,17 @@ struct State {
     /// Set once the modifier has been used for a drag: its release must then not open a menu.
     modifier_used: bool,
     drag: Option<Drag>,
+    shake: ShakeDetector,
 }
 
 thread_local! {
     static STATE: RefCell<State> = const {
-        RefCell::new(State { modifier: Modifier::Alt, modifier_used: false, drag: None })
+        RefCell::new(State {
+            modifier: Modifier::Alt,
+            modifier_used: false,
+            drag: None,
+            shake: ShakeDetector::new(),
+        })
     };
 }
 
@@ -94,7 +102,7 @@ unsafe extern "system" fn mouse_proc(code: i32, wparam: WPARAM, lparam: LPARAM) 
         if info.flags & LLMHF_INJECTED == 0 {
             let swallow = match wparam as u32 {
                 WM_LBUTTONDOWN => on_button_down(info.pt),
-                WM_MOUSEMOVE => on_mouse_move(info.pt),
+                WM_MOUSEMOVE => on_mouse_move(info.pt, info.time),
                 WM_LBUTTONUP => on_button_up(),
                 _ => false,
             };
@@ -129,7 +137,7 @@ fn on_button_down(pt: POINT) -> bool {
             log!("discarding stale drag");
             return false;
         }
-        if !modifier_is_down(state.modifier) {
+        if !settings::is_enabled(Feature::SymmetricResize) || !modifier_is_down(state.modifier) {
             return false;
         }
         let Some(hwnd) = window::root_window_at(pt) else {
@@ -158,12 +166,17 @@ fn on_button_down(pt: POINT) -> bool {
 }
 
 /// Moves are never swallowed, so the cursor keeps tracking the edge it holds.
-fn on_mouse_move(pt: POINT) -> bool {
+fn on_mouse_move(pt: POINT, time: u32) -> bool {
     STATE.with(|state| {
         let Ok(mut state) = state.try_borrow_mut() else {
             return false;
         };
         let Some(drag) = state.drag.as_mut() else {
+            // Shake detection only runs outside a drag; the actual pointer change happens on the
+            // message loop so this hook never waits on other windows.
+            if settings::is_enabled(Feature::ShakeToFind) && state.shake.feed(pt.x, pt.y, time) {
+                cursor::request();
+            }
             return false;
         };
         let (dx, dy) = (pt.x - drag.origin.x, pt.y - drag.origin.y);

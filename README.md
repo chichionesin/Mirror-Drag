@@ -9,12 +9,14 @@ macOS has two small window tricks that Windows lacks:
 Mirror-Drag brings both to Windows as a single ~300 KB background executable —
 just a tray icon, no installer, no runtime dependencies.
 
-| Gesture                              | Effect                                                    |
-|--------------------------------------|-----------------------------------------------------------|
+| Gesture                               | Effect                                                   |
+|---------------------------------------|----------------------------------------------------------|
 | **Alt + drag** any window edge/corner | Symmetric resize around the window center                |
 | **Win + Alt + C**                     | Center the active window on its monitor's work area      |
+| **Shake the mouse**                   | The pointer grows for a moment so you can find it        |
 
-Both keys are configurable (see below).
+Both keys are configurable (see below). Every feature can be switched off from the tray menu,
+which also has a *Start with Windows* toggle.
 
 ## Download
 
@@ -27,12 +29,17 @@ tagged source, or you can [build it yourself](#building).
 
 ## Usage
 
-Double-click `mirror-drag.exe`. It keeps running in the
-background and shows a small blue icon in the notification area (tray); hover it to see
-the configured keys.
+Double-click `mirror-drag.exe`. It keeps running in the background and shows a small blue
+icon in the notification area (tray); hover it to see the configured keys. Click the icon
+for the menu:
 
-To stop it, right-click the tray icon and choose **Exit**. Alternatively run the exe
-again — it asks whether to stop the running instance — or run
+* **Symmetric resize**, **Center window**, **Shake to find cursor** — check/uncheck to switch
+  each feature on or off. The choice is remembered (`HKCU\Software\Mirror-Drag`).
+* **Start with Windows** — adds/removes a Run entry that launches the exe (with the same
+  command-line options) at logon.
+* **Exit**.
+
+Alternatively run the exe again — it asks whether to stop the running instance — or run
 `mirror-drag.exe --quit` from a terminal.
 
 ```
@@ -57,9 +64,6 @@ mirror-drag.exe --center-hotkey none             # symmetric resize only
 mirror-drag.exe --console                        # watch what it does
 ```
 
-**Autostart:** press `Win+R`, run `shell:startup`, and put a shortcut to
-`mirror-drag.exe` (with any options you like) into the folder that opens.
-
 ## Notes and limitations
 
 * **Elevated windows.** Windows does not let a normal process touch windows of programs
@@ -75,6 +79,10 @@ mirror-drag.exe --console                        # watch what it does
 * **Alt + Shift** is the default keyboard-layout switch on Windows, so avoid `alt+shift+…`
   as the center hotkey.
 * Maximized windows are ignored by the center hotkey; unmaximize first.
+* **Shake to find** uses the pointer-size setting of Windows 10 1809+ (*Settings → Accessibility →
+  Mouse pointer*). The size is bumped for ~1 s and put back; if the process is killed in that
+  moment, the next start restores it. It is a system-wide setting, so the enlarged pointer
+  briefly shows in every app — that is the point.
 
 ## Building
 
@@ -121,8 +129,12 @@ cargo clippy --target x86_64-pc-windows-gnu --all-targets -- -D warnings
   the result looks centered rather than being centered on paper.
 * The process is per-monitor DPI aware (v2), so all coordinates are physical pixels and
   mixed-DPI setups work.
-* The tray icon is a `Shell_NotifyIcon` owned by a hidden window; its context menu's *Exit*
-  posts `WM_QUIT`. The icon itself is rendered at startup from a few rectangles (no image
+* Shake detection counts direction reversals of the pointer: four strokes of ≥ 30 px within
+  600 ms on either axis. The hook only posts a thread message; the message loop then writes
+  `CursorBaseSize` and calls `SystemParametersInfo(SPI_SETCURSORS)`, and a thread timer
+  restores the original size.
+* The tray icon is a `Shell_NotifyIcon` owned by a hidden window; its context menu toggles
+  the features (persisted in the registry), the Run entry, and *Exit* posts `WM_QUIT`. The icon itself is rendered at startup from a few rectangles (no image
   resources), and is re-added automatically when Explorer restarts (`TaskbarCreated`).
 * A named mutex enforces a single instance; a named event lets `--quit` (or a second launch)
   stop it cleanly, unhooking everything on the way out.
